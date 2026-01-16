@@ -1177,10 +1177,6 @@ static bool check_create_domain(dds_domainid_t did, rmw_discovery_options_t * di
             discovery_options->static_peers_count);
         }
         break;
-      default:
-        RMW_SET_ERROR_MSG("automatic_discovery_range is an unknown value");
-        return false;
-        break;
     }
 
     std::string config;
@@ -2223,11 +2219,10 @@ static dds_qos_t * create_readwrite_qos(
       break;
     case RMW_QOS_POLICY_HISTORY_UNKNOWN:
       return nullptr;
-    default:
-      rmw_cyclonedds_cpp::unreachable();
   }
   switch (qos_policies->reliability) {
     case RMW_QOS_POLICY_RELIABILITY_SYSTEM_DEFAULT:
+    case RMW_QOS_POLICY_RELIABILITY_BEST_AVAILABLE:
     case RMW_QOS_POLICY_RELIABILITY_RELIABLE:
       dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
       break;
@@ -2236,11 +2231,10 @@ static dds_qos_t * create_readwrite_qos(
       break;
     case RMW_QOS_POLICY_RELIABILITY_UNKNOWN:
       return nullptr;
-    default:
-      rmw_cyclonedds_cpp::unreachable();
   }
   switch (qos_policies->durability) {
     case RMW_QOS_POLICY_DURABILITY_SYSTEM_DEFAULT:
+    case RMW_QOS_POLICY_DURABILITY_BEST_AVAILABLE:
     case RMW_QOS_POLICY_DURABILITY_VOLATILE:
       dds_qset_durability(qos, DDS_DURABILITY_VOLATILE);
       break;
@@ -2259,8 +2253,6 @@ static dds_qos_t * create_readwrite_qos(
       }
     case RMW_QOS_POLICY_DURABILITY_UNKNOWN:
       return nullptr;
-    default:
-      rmw_cyclonedds_cpp::unreachable();
   }
 
   if (!is_rmw_duration_unspecified(qos_policies->lifespan)) {
@@ -2283,10 +2275,11 @@ static dds_qos_t * create_readwrite_qos(
     case RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_TOPIC:
       dds_qset_liveliness(qos, DDS_LIVELINESS_MANUAL_BY_TOPIC, ldur);
       break;
+    case RMW_QOS_POLICY_LIVELINESS_BEST_AVAILABLE:
+      dds_qset_liveliness(qos, DDS_LIVELINESS_AUTOMATIC, ldur);
+      break;
     case RMW_QOS_POLICY_LIVELINESS_UNKNOWN:
       return nullptr;
-    default:
-      rmw_cyclonedds_cpp::unreachable();
   }
   if (ignore_local_publications) {
     dds_qset_ignorelocal(qos, DDS_IGNORELOCAL_PARTICIPANT);
@@ -2322,9 +2315,30 @@ static rmw_qos_policy_kind_t dds_qos_policy_to_rmw_qos_policy(dds_qos_policy_id_
       return RMW_QOS_POLICY_HISTORY;
     case DDS_LIFESPAN_QOS_POLICY_ID:
       return RMW_QOS_POLICY_LIFESPAN;
-    default:
+    case DDS_INVALID_QOS_POLICY_ID:
+      return RMW_QOS_POLICY_INVALID;
+    case DDS_USERDATA_QOS_POLICY_ID:
+    case DDS_PRESENTATION_QOS_POLICY_ID:
+    case DDS_LATENCYBUDGET_QOS_POLICY_ID:
+    case DDS_OWNERSHIP_QOS_POLICY_ID:
+    case DDS_OWNERSHIPSTRENGTH_QOS_POLICY_ID:
+    case DDS_TIMEBASEDFILTER_QOS_POLICY_ID:
+    case DDS_PARTITION_QOS_POLICY_ID:
+    case DDS_DESTINATIONORDER_QOS_POLICY_ID:
+    case DDS_RESOURCELIMITS_QOS_POLICY_ID:
+    case DDS_ENTITYFACTORY_QOS_POLICY_ID:
+    case DDS_WRITERDATALIFECYCLE_QOS_POLICY_ID:
+    case DDS_READERDATALIFECYCLE_QOS_POLICY_ID:
+    case DDS_TOPICDATA_QOS_POLICY_ID:
+    case DDS_GROUPDATA_QOS_POLICY_ID:
+    case DDS_TRANSPORTPRIORITY_QOS_POLICY_ID:
+    case DDS_DURABILITYSERVICE_QOS_POLICY_ID:
+    case DDS_PROPERTY_QOS_POLICY_ID:
+    case DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID:
+    case DDS_DATA_REPRESENTATION_QOS_POLICY_ID:
       return RMW_QOS_POLICY_INVALID;
   }
+  return RMW_QOS_POLICY_INVALID;
 }
 
 static bool dds_qos_to_rmw_qos(const dds_qos_t * dds_qos, rmw_qos_profile_t * qos_policies)
@@ -2353,8 +2367,6 @@ static bool dds_qos_to_rmw_qos(const dds_qos_t * dds_qos, rmw_qos_profile_t * qo
         // larger than 2^31 - 1.  Just set the depth to 0 here instead.
         qos_policies->depth = 0;
         break;
-      default:
-        rmw_cyclonedds_cpp::unreachable();
     }
   }
 
@@ -2372,8 +2384,6 @@ static bool dds_qos_to_rmw_qos(const dds_qos_t * dds_qos, rmw_qos_profile_t * qo
       case DDS_RELIABILITY_RELIABLE:
         qos_policies->reliability = RMW_QOS_POLICY_RELIABILITY_RELIABLE;
         break;
-      default:
-        rmw_cyclonedds_cpp::unreachable();
     }
   }
 
@@ -2394,8 +2404,6 @@ static bool dds_qos_to_rmw_qos(const dds_qos_t * dds_qos, rmw_qos_profile_t * qo
       case DDS_DURABILITY_PERSISTENT:
         qos_policies->durability = RMW_QOS_POLICY_DURABILITY_UNKNOWN;
         break;
-      default:
-        rmw_cyclonedds_cpp::unreachable();
     }
   }
 
@@ -2433,8 +2441,6 @@ static bool dds_qos_to_rmw_qos(const dds_qos_t * dds_qos, rmw_qos_profile_t * qo
       case DDS_LIVELINESS_MANUAL_BY_TOPIC:
         qos_policies->liveliness = RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_TOPIC;
         break;
-      default:
-        rmw_cyclonedds_cpp::unreachable();
     }
     qos_policies->liveliness_lease_duration = dds_duration_to_rmw(lease_duration);
   }
@@ -2793,9 +2799,8 @@ rmw_ret_t rmw_publisher_wait_for_all_acked(
       return RMW_RET_TIMEOUT;
     case DDS_RETCODE_UNSUPPORTED:
       return RMW_RET_UNSUPPORTED;
-    default:
-      return RMW_RET_ERROR;
   }
+  return RMW_RET_ERROR;
 }
 
 rmw_ret_t rmw_publisher_get_actual_qos(const rmw_publisher_t * publisher, rmw_qos_profile_t * qos)
@@ -4113,7 +4118,6 @@ extern "C" rmw_ret_t rmw_take_event(
         *taken = true;
         return RMW_RET_OK;
       }
-
     case RMW_EVENT_INVALID:
     case RMW_EVENT_TYPE_MAX: {
         break;
